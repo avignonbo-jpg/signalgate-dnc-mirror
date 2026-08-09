@@ -34,10 +34,10 @@ jobs:
         run: |
           git config user.name "signalgate-dnc-mirror-bot"
           git config user.email "actions@users.noreply.github.com"
-          if git diff --quiet -- dnc-numbers.json; then
+          git add dnc-numbers.json
+          if git diff --cached --quiet; then
             echo "No change in published data — skipping commit."
           else
-            git add dnc-numbers.json
             git commit -m "Sync FTC DNC snapshot $(date -u +%Y-%m-%dT%H:%M:%SZ)"
             git push origin dnc-mirror-pulse
           fi
