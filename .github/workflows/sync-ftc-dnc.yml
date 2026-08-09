@@ -1,1 +1,43 @@
-placeholder
+name: Sync FTC DNC Mirror
+
+on:
+  schedule:
+    # Every 6 hours. DNC complaint data doesn't need to be fresher than this —
+    # tune down if the FTC dataset updates less often than that in practice.
+    - cron: '0 */6 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout dnc-mirror-pulse
+        uses: actions/checkout@v4
+        with:
+          ref: dnc-mirror-pulse
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Fetch, validate, and publish FTC DNC snapshot
+        env:
+          FTC_API_KEY: ${{ secrets.FTC_API_KEY }}
+        run: python3 scripts/sync_ftc_dnc.py
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "signalgate-dnc-mirror-bot"
+          git config user.email "actions@users.noreply.github.com"
+          if git diff --quiet -- dnc-numbers.json; then
+            echo "No change in published data — skipping commit."
+          else
+            git add dnc-numbers.json
+            git commit -m "Sync FTC DNC snapshot $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            git push origin dnc-mirror-pulse
+          fi
