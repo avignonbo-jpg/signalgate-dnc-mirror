@@ -152,6 +152,31 @@ def main() -> int:
     with open(OUTPUT_PATH, "w") as f:
         json.dump(output, f, indent=2)
 
+import base64
+import hashlib
+
+def sign_output(private_key_pem: str, path: str) -> None:
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+
+    with open(path, "rb") as f:
+        payload_bytes = f.read()
+
+    private_key = serialization.load_pem_private_key(
+        private_key_pem.encode("utf-8"), password=None
+    )
+    signature = private_key.sign(payload_bytes, ec.ECDSA(hashes.SHA256()))
+
+    manifest = {
+        "algorithm": "SHA256withECDSA",
+        "sha256": hashlib.sha256(payload_bytes).hexdigest(),
+        "signature_b64": base64.b64encode(signature).decode("ascii"),
+        "signed_at": datetime.now(timezone.utc).isoformat(),
+    }
+    with open(path + ".sig.json", "w") as f:
+        json.dump(manifest, f, indent=2)
+  
+
     print(
         f"OK: {len(newest)} fetched this run, {len(merged)} total published "
         f"(was {previous_count})",
